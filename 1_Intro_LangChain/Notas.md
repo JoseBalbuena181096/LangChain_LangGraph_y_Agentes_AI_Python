@@ -404,3 +404,196 @@ if st.button("🗑️ Nueva conversación"):
 
 
 ¡Diviértete construyendo y no dudes en experimentar con las funcionalidades! 🚀
+
+## Lectura: PydanticOutputParser: El Método Clásico para salidas estructuradas
+Antes de que LangChain introdujera with_structured_output(), los desarrolladores usábamos PydanticOutputParser para obtener respuestas estructuradas de los modelos de lenguaje. Aunque es un método más verboso, sigue siendo ampliamente utilizado y te ayudará a entender los fundamentos del structured output.
+
+
+
+¿Qué es PydanticOutputParser?
+
+PydanticOutputParser es una clase que convierte las respuestas de texto libre de un LLM en objetos Python estructurados usando modelos de Pydantic. Funciona añadiendo instrucciones específicas al prompt y luego parseando la respuesta del modelo.
+
+
+
+Instalación de Dependencias
+
+pip install langchain langchain-openai pydantic
+
+
+
+Ejemplo Completo Paso a Paso
+
+Paso 1: Definir el Modelo Pydantic
+
+from pydantic import BaseModel, Field
+ 
+class AnalisisTexto(BaseModel):
+    resumen: str = Field(description="Resumen breve del texto")
+    sentimiento: str = Field(description="Sentimiento del texto (Positivo, neutro o negativo)")
+    palabras_clave: list[str] = Field(description="Lista de palabras clave del texto")
+
+
+Explicación:
+
+BaseModel: Clase base de Pydantic para crear modelos de datos
+
+Field(): Permite añadir descripciones y validaciones
+
+Las descripciones son cruciales: el parser las usa para generar instrucciones
+
+
+
+Paso 2: Crear el Parser
+
+from langchain.output_parsers import PydanticOutputParser
+ 
+# Crear el parser con nuestro modelo
+parser = PydanticOutputParser(pydantic_object=AnalisisTexto)
+ 
+# Ver las instrucciones que genera automáticamente
+print("Instrucciones generadas:")
+print(parser.get_format_instructions())
+
+
+Paso 3: Crear el Prompt Template
+
+from langchain.prompts import PromptTemplate
+ 
+prompt = PromptTemplate(
+    template="""Eres un experto analista de texto. Analiza el siguiente texto con mucho cuidado y proporciona un análisis detallado.
+ 
+{format_instructions}
+ 
+Texto a analizar:
+{texto}
+ 
+Análisis:""",
+    input_variables=["texto"],
+    partial_variables={"format_instructions": parser.get_format_instructions()}
+)
+
+
+Puntos importantes:
+
+{format_instructions} se sustituye automáticamente con las instrucciones del parser
+
+partial_variables permite pre-llenar variables del template
+
+El prompt debe ser claro sobre qué esperas del modelo
+
+
+
+Paso 4: Configurar el LLM
+
+from langchain_openai import ChatOpenAI
+import os
+ 
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    temperature=0.3,  # Baja temperatura para respuestas más consistentes
+)
+
+
+Paso 5: Crear la Cadena de Procesamiento
+
+# Crear la cadena: prompt → LLM → parser
+chain = prompt | llm | parser
+
+
+¿Qué hace cada paso?
+
+Prompt: Genera el mensaje completo con instrucciones
+
+LLM: Procesa el prompt y genera una respuesta
+
+Parser: Convierte la respuesta en un objeto Pydantic
+
+
+
+Paso 6: Ejecutar el Análisis
+
+# Texto de ejemplo
+texto_prueba = """
+La nueva película de ciencia ficción 'Estrella Galáctica' es absolutamente 
+espectacular. Los efectos visuales son impresionantes y la trama mantiene 
+la tensión durante toda la película. Los actores principales entregan 
+actuaciones convincentes que realmente te hacen creer en este mundo futurista.
+Sin duda una de las mejores películas del año.
+"""
+ 
+try:
+    # Invocar la cadena
+    resultado = chain.invoke({"texto": texto_prueba})
+    
+    # Acceder a los datos
+    print("=== RESULTADO DEL ANÁLISIS ===")
+    print(f"Resumen: {resultado.resumen}")
+    print(f"Sentimiento: {resultado.sentimiento}")
+    print(f"Palabras clave: {', '.join(resultado.palabras_clave)}")
+    
+    # Exportar como JSON
+    print("\n=== JSON RESULTANTE ===")
+    print(resultado.model_dump_json(indent=2))
+    
+    # Exportar como diccionario
+    dict_resultado = resultado.model_dump()
+    print(f"\nTipo de objeto: {type(resultado)}")
+    print(f"Tipo de diccionario: {type(dict_resultado)}")
+    
+except Exception as e:
+    print(f"❌ Error durante el procesamiento: {e}")
+
+
+Código Completo Funcional
+
+from pydantic import BaseModel, Field
+from langchain_openai import ChatOpenAI
+from langchain.output_parsers import PydanticOutputParser
+from langchain.prompts import PromptTemplate
+import os
+ 
+# 1. Modelo de datos
+class AnalisisTexto(BaseModel):
+    resumen: str = Field(description="Resumen breve del texto")
+    sentimiento: str = Field(description="Sentimiento: Positivo, Neutro o Negativo")
+    palabras_clave: list[str] = Field(description="3-5 palabras clave principales")
+ 
+# 2. Parser
+parser = PydanticOutputParser(pydantic_object=AnalisisTexto)
+ 
+# 3. Prompt
+prompt = PromptTemplate(
+    template="""Analiza este texto cuidadosamente y proporciona un análisis estructurado:
+ 
+{format_instructions}
+ 
+TEXTO:
+{texto}
+ 
+ANÁLISIS:""",
+    input_variables=["texto"],
+    partial_variables={"format_instructions": parser.get_format_instructions()}
+)
+ 
+# 4. LLM
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+ 
+# 5. Cadena
+chain = prompt | llm | parser
+ 
+# 6. Ejecución
+if __name__ == "__main__":
+    texto = "Me encantó la nueva película de acción, tiene efectos especiales increíbles."
+    
+    try:
+        resultado = chain.invoke({"texto": texto})
+        print("✅ Análisis exitoso:")
+        print(resultado.model_dump_json(indent=2))
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+
+Conclusión
+
+PydanticOutputParser sigue siendo una herramienta valiosa para obtener structured output en LangChain. Aunque requiere más código que los métodos modernos, te da control total sobre el proceso y funciona con cualquier modelo de lenguaje. Es especialmente útil cuando necesitas validaciones complejas o trabajas con modelos que no soportan function calling nativo.

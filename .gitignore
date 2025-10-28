@@ -62,3 +62,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Google OAuth credentials
+client_secret_*.json
+credential.json

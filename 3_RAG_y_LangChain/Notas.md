@@ -464,3 +464,56 @@ Documentación de proyectos
 Auditorías de repositorios
 
 Generación de documentación automática
+
+## Los Embeddings
+Son la piedra angular de la recuperación semántica. De obtener información mediante una consulta, en base
+al significado semantico de esa información que esta almacenada.
+Es una representacion numerica un vector, que captura el significado semantico de una palabra o una frase.
+Para crear un embedding, se pasa una palabra o frase, y esta se transforma en vector de numeros de longitud fija,
+este vector es una huella semantica de este texto, que representa ese texto de maneraunivoca y el significado del texto.
+Los textos que tengan contenidos similares, producen vectores cercanos entre si en el espacio vectorial, textos que estan 
+distantes en el espacio vectorial, tienen significados semánticos diferentes.
+
+### Por ejemplo:
+La frase "la capital de francia es paris" y "en francia su capital es paris", difieren en el orden de las palabras,
+pero tienen el mismo significado semantico, por lo que sus embeddings seran cercanos en el espacio vectorial. Un buen modelo de 
+embedding, crearia dos vectores de estas dos fraces que casi se solapan, por que la distancia entre ellos es pequeña, porque 
+semanticamente son iguales, tienen el mismo significado.
+
+En lugar "paris es una capital de mascotas" y "paris es la capital de francia" 
+estos textos tienen significados semánticos diferentes, por lo que sus embeddings seran distantes en el espacio vectorial.
+
+Los embeddings son esenciales para la recuperación semántica, permitiendo que el modelo entienda y compare el significado 
+de las consultas y los documentos almacenados. Un buen modelo de embeddings puede mejorar significativamente la precisión 
+y la relevancia de los resultados de la recuperación.
+
+### OPENAI Embeddings
+text-embedding-3-large (3072)
+
+Existen muchas formas de diferenciar los embeddings y se diferencian del provedor de embeddings.
+Por ejemplo, el modelo text-embedding-3-large de OpenAI, tiene una dimension de 3072, mientras que el modelo 
+text-embedding-ada-002 tiene una dimension de 1536.
+
+En langchain, todos los embeddings heredan de la misma clase, Embedding, la cual define los metodos basicos que deben 
+implementar los embeddings, como la transformacion de texto en vector.
+
+## Una base de datos vectorial es una base de datos que se utiliza para almacenar y recuperar vectores numéricos.
+
+Estos vectores pueden representar datos como texto, imágenes, audio o video, y se utilizan 
+para tareas como búsqueda semántica, recomendaciones y clustering.
+
+En una base de datos vectorial se realizan operaciones de búsqueda basadas en la similitud vectorial,
+en lugar de la búsqueda basada en texto. 
+
+El elemento que se busca a nivel semántico es el vector que más se aproxima al vector de consulta.
+
+En la mayoria de aplicaciones ocuparemos memoria a largo plazo para almacenar los vectores.
+Los fragmento de texto, se vectorizan y se almacenan en la base de datos vectorial. Estas base de
+datos pueden implementar diferentes algoritmos de indexación y búsqueda basados en vectores,
+como el árbol de vecinos más cercanos (kNN) o el índice invertido. 
+El mismo modelo de embeddings que se utilizó para vectorizar los fragmentos de texto,
+se utilizará para vectorizar la consulta y realizar la búsqueda semántica.
+
+Algunas base de datos vectoriales populares son:
+- Pinecone
+- Chroma

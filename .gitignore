@@ -67,3 +67,14 @@ Thumbs.db
 client_secret_*.json
 credential.json
 token.json
+
+# ChromaDB and vector databases
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Vector embeddings and large data files
+*.bin
+*.index
+*.faiss

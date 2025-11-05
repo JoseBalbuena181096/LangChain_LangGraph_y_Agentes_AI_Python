@@ -10,6 +10,14 @@ import streamlit as st
 from config import *
 from prompts import *
 
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
+print(os.getenv("OPENAI_API_KEY"))
+
+
 @st.cache_resource
 def initialize_rag_system():
 
@@ -71,7 +79,7 @@ def initialize_rag_system():
             
             if doc.metadata:
                 if 'source' in doc.metadata:
-                    source = doc.metadata['source'].split("\\")[-1] if '\\' in doc.metadata['source'] else doc.metadata['source']
+                    source = os.path.basename(doc.metadata['source'])
                     header += f" - Fuente: {source}"
                 if 'page' in doc.metadata:
                     header += f" - Pagina: {doc.metadata['page']}"

@@ -19,4 +19,5 @@ se utilizará para vectorizar la consulta y realizar la búsqueda semántica.
 Algunas base de datos vectoriales populares son:
 - Pinecone
 - Chroma
+
 """

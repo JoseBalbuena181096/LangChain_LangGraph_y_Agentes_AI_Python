@@ -414,3 +414,9 @@ if __name__ == "__main__":
     result = app.invoke(test_state)
     print(result)
 ```
+
+### Checkpoints
+- Definición clara del estado con todos los campos necesarios.
+- Implementación de nodos especializados con prompts adecuados.
+- Configuración correcta del flujo de procesamiento en el grafo.graph = StateGraph(State)
+- Pruebas iniciales con datos de ejemplo para validar la funcionalidad básica.graph = StateGraph(State) 

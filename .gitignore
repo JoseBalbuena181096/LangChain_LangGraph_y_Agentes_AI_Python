@@ -73,6 +73,8 @@ chroma_db/
 *.db
 *.sqlite
 *.sqlite3
+*-shm
+*-wal
 
 # Vector embeddings and large data files
 *.bin

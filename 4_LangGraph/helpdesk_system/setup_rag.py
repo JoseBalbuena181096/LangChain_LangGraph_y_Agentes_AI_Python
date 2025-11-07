@@ -4,8 +4,13 @@ from pathlib import Path
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from dotenv import load_dotenv 
+import os
+
+load_dotenv()
+print(os.getenv("OPENAI_API_KEY"))
 
 from config import * 
 
@@ -19,9 +24,10 @@ class DocumentProcessor:
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
-            length_function=len,
+            length_function=len, # tiktoken
             separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
         )
+
         
     def load_documents(self) -> List[Document]:
         """Carga documentos markdown del directorio docs."""

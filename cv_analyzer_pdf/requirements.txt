@@ -1,0 +1,26 @@
+# Sistema de Evaluación de CVs - Dependencias
+
+# Framework de IA y LLM
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.20
+
+# Procesamiento de PDFs
+PyPDF2>=3.0.0
+pypdf>=3.0.0
+
+# Validación de datos
+pydantic>=2.0.0
+
+# Variables de entorno
+python-dotenv>=1.0.0
+
+# Interfaces de usuario
+streamlit>=1.30.0
+gradio>=4.0.0
+
+# Utilidades
+typing-extensions>=4.5.0
+
+# Generación de PDFs
+reportlab>=4.0.0

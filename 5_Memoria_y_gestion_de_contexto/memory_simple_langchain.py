@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 # print(os.getenv("OPENAI_API_KEY"))  # Removed for security
 
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+llm = ChatOpenAI(model="gpt-5-nano", temperature=0)
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", "Eres un asistente útil."),

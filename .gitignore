@@ -75,6 +75,7 @@ chroma_db/
 *.sqlite3
 *-shm
 *-wal
+historial.db
 
 # Vector embeddings and large data files
 *.bin

@@ -1,8 +1,8 @@
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI 
 from langgraph.graph import MessagesState, StateGraph, START
-from langgraph.checkpoint.memory import MemorySaver
-
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
 import os
 from dotenv import load_dotenv 
 
@@ -11,49 +11,32 @@ load_dotenv()
 
 llm = ChatOpenAI(model="gpt-5-nano", temperature=0)
 
-workflow = StateGraph(
-    state_schema=MessagesState
-)
+
+workflow = StateGraph(state_schema=MessagesState)
 
 def chatbot_node(state):
-    """Node que procesa mensajes y genera respuestas."""
+    """Nodo que procesa mensajes y genera respuestas."""
     system_prompt = "Eres un asistente amigable que recuerda conversaciones previas."
-    messages = [
-        SystemMessage(content=system_prompt)
-    ] + state["messages"]
+    messages = [SystemMessage(content=system_prompt)] + state["messages"]
     response = llm.invoke(messages)
-    return {
-        "messages": [response]
-    }
+    return {"messages": [response]}
 
-
-workflow.add_node(
-    "chatbot",
-    chatbot_node)
-
-workflow.add_edge(
-    START,
-    "chatbot"
-)
+workflow.add_node("chatbot", chatbot_node)
+workflow.add_edge(START, "chatbot")
 
 # Compilar el grafo
-memory = MemorySaver()
-app = workflow.compile(
-    checkpointer=memory
-)
+conn = sqlite3.connect("historial.db", check_same_thread=False)
+memory = SqliteSaver(conn)
+app = workflow.compile(checkpointer=memory)
 
-def chat(message, thead_id="session_terminal"):
-    config = {"configurable": {"thread_id": thead_id}}
-    result = app.invoke(
-        {"messages": [HumanMessage(content=message)]},
-        config=config
-    )
+def chat(message, thread_id="sesion_terminal"):
+    config = {"configurable": {"thread_id": thread_id}}
+    result = app.invoke({"messages": [HumanMessage(content=message)]}, config)
     return result["messages"][-1].content
 
 if __name__ == "__main__":
-
     print("Chat en terminal (escribe 'salir' para terminar)\n")
-    session_id = "session_terminal"
+    session_id = "sesion_terminal2"
 
     while True:
         try:
@@ -68,5 +51,5 @@ if __name__ == "__main__":
             print("Hasta luego!")
             break
 
-        respuesta = chat(user_input, thead_id=session_id)
+        respuesta = chat(user_input, session_id)
         print("Asistente:", respuesta)

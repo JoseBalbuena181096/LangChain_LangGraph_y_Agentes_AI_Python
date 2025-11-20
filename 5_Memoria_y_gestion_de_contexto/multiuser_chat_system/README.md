@@ -1,151 +1,295 @@
-# 🤖 Chat Multi-Usuario con Memoria Avanzada
+# 🧠 Sistema de Chat Multi-Usuario con Memoria Vectorial Avanzada
 
-Este proyecto implementa un sistema de chat inteligente capaz de manejar múltiples usuarios, mantener el contexto de las conversaciones y gestionar una memoria a largo plazo utilizando bases de datos vectoriales. Está construido con **Python**, **Streamlit**, **LangChain** y **LangGraph**.
+> **Documentación Técnica Detallada**
+> Este documento proporciona una explicación profunda de la arquitectura, componentes y flujo de datos del sistema. Diseñado para desarrolladores e ingenieros de IA que deseen comprender cómo construir sistemas de memoria persistente.
 
-## 📋 Descripción General
+---
 
-El sistema permite a los usuarios tener conversaciones naturales con un asistente de IA que "recuerda" detalles importantes de charlas anteriores. A diferencia de los chatbots tradicionales que pierden el contexto al cerrar la sesión o superar el límite de tokens, este sistema utiliza una arquitectura híbrida de memoria:
+## 📖 1. Introducción y Filosofía del Proyecto
 
-1.  **Memoria a Corto Plazo (LangGraph)**: Mantiene el hilo de la conversación actual.
-2.  **Memoria a Largo Plazo (ChromaDB)**: Almacena hechos importantes, preferencias y datos personales de forma permanente.
+Los LLMs (Large Language Models) tradicionales son "amnésicos" por diseño: cada nueva sesión es una pizarra en blanco. Si bien las ventanas de contexto han crecido (128k, 1M tokens), pasar todo el historial de conversaciones pasadas es ineficiente, costoso y lento.
 
-### Características Principales
+Este proyecto resuelve el problema de la **continuidad** mediante una **Arquitectura de Memoria Híbrida**:
+1.  **Memoria Episódica (Corto Plazo)**: Gestionada por `LangGraph`, mantiene el contexto inmediato de la conversación actual.
+2.  **Memoria Semántica (Largo Plazo)**: Gestionada por `ChromaDB`, almacena hechos, preferencias y datos del usuario de forma permanente y consultable semánticamente.
 
-*   **👥 Multi-Usuario**: Soporte para múltiples perfiles de usuario independientes.
-*   **💾 Persistencia**: Historial de chats guardado y recuperable.
-*   **🧠 Memoria Vectorial**: Extracción y recuperación automática de información relevante.
-*   **⚡ Optimización de Contexto**: Gestión inteligente de tokens para conversaciones largas.
-*   **🎨 Interfaz Moderna**: UI intuitiva construida con Streamlit.
+El objetivo es crear un asistente que no solo "chatee", sino que **conozca** al usuario a lo largo del tiempo.
 
-## 🛠️ Tecnologías Utilizadas
+---
 
-*   **[Streamlit](https://streamlit.io/)**: Framework para la interfaz de usuario.
-*   **[LangChain](https://www.langchain.com/)**: Orquestación de LLMs y herramientas.
-*   **[LangGraph](https://langchain-ai.github.io/langgraph/)**: Gestión del flujo de conversación y estado.
-*   **[ChromaDB](https://www.trychroma.com/)**: Base de datos vectorial para la memoria semántica.
-*   **[OpenAI](https://openai.com/)**: Modelos de lenguaje (GPT-4o/GPT-5-nano).
-*   **SQLite**: Almacenamiento de checkpoints de estado.
+## 🏗️ 2. Arquitectura del Sistema
 
-## 🏗️ Arquitectura del Sistema
+El sistema sigue una arquitectura modular desacoplada, donde la interfaz (Frontend) está separada de la lógica de negocio (Backend/Core), unidas por un gestor de estado.
 
-### Flujo de Datos General
+### Diagrama de Alto Nivel
 
 ```mermaid
 graph TD
-    User[👤 Usuario] <--> UI[💻 Interfaz Streamlit]
-    UI <--> Manager[🔧 Chatbot Manager]
-    Manager <--> LG[🔄 LangGraph Workflow]
-    
-    subgraph "Sistema de Memoria"
-        LG <--> MEM[🧠 Memory Manager]
-        MEM <--> VDB[(🗄️ ChromaDB\nMemoria Vectorial)]
-        MEM <--> SQL[(💾 SQLite\nEstado Conversación)]
-        MEM <--> META[(📄 JSON\nMetadatos Chats)]
+    subgraph "Frontend (Streamlit)"
+        UI[🖥️ Interfaz de Usuario]
+        Session[📦 Session State]
     end
-    
-    LG <--> LLM[🤖 OpenAI LLM]
+
+    subgraph "Orquestador (LangGraph)"
+        Graph[🔄 Grafo de Estados]
+        Nodes[📍 Nodos de Procesamiento]
+    end
+
+    subgraph "Capa de Memoria (Memory Manager)"
+        Ext[🔍 Extractor de Hechos]
+        Ret[🎣 Recuperador Semántico]
+        VDB[(🧠 ChromaDB - Vectores)]
+        MetaDB[(📄 JSON/SQLite - Metadatos)]
+    end
+
+    subgraph "Modelos (OpenAI)"
+        ChatModel[🤖 GPT-4o (Chat)]
+        ExtractModel[⛏️ GPT-3.5/4 (Extracción)]
+        EmbedModel[🔢 Text-Embedding-3 (Vectores)]
+    end
+
+    UI <--> Session
+    Session <--> Graph
+    Graph <--> Nodes
+    Nodes <--> ChatModel
+    Nodes <--> Ext
+    Nodes <--> Ret
+    Ext <--> ExtractModel
+    Ret <--> EmbedModel
+    Ret <--> VDB
+    Ext <--> VDB
 ```
 
-### Flujo de Procesamiento del Chat (LangGraph)
+---
 
-El núcleo del chatbot utiliza un grafo de estados para procesar cada mensaje:
+## 🔬 3. Análisis Profundo de Componentes
 
-```mermaid
-stateDiagram-v2
-    [*] --> RecuperacionMemoria: 📨 Mensaje Usuario
-    
-    state RecuperacionMemoria {
-        [*] --> BuscarVDB: Query Vectorial
-        BuscarVDB --> Contexto: Memorias Relevantes
-    }
-    
-    RecuperacionMemoria --> OptimizacionContexto: Contexto + Historial
-    
-    state OptimizacionContexto {
-        [*] --> Trimming: Recortar Mensajes Antiguos
-        Trimming --> Prompt: Contexto Optimizado
-    }
-    
-    OptimizacionContexto --> GeneracionRespuesta: Prompt Final
-    
-    state GeneracionRespuesta {
-        [*] --> LLM: Invocar Modelo
-        LLM --> Respuesta: Texto Generado
-    }
-    
-    GeneracionRespuesta --> ExtraccionMemoria: Respuesta Asistente
-    
-    state ExtraccionMemoria {
-        [*] --> Analisis: ¿Hay info nueva?
-        Analisis --> Guardar: Si (Categoría/Importancia)
-        Analisis --> Ignorar: No
-        Guardar --> VDB: Insertar Vector
-    }
-    
-    ExtraccionMemoria --> [*]: 🏁 Fin Turno
-```
+A continuación, desglosamos cada archivo y su responsabilidad técnica.
 
-## 🚀 Instalación y Configuración
+### 3.1. `memory_manager.py`: El Hipocampo del Sistema
 
-### Prerrequisitos
+Este módulo es el cerebro de la memoria a largo plazo. No solo guarda texto, sino que **entiende** qué es importante guardar.
 
-*   Python 3.9+
-*   Una API Key de OpenAI
+#### 🧠 Base de Datos Vectorial (ChromaDB)
+Utilizamos **ChromaDB** como almacén vectorial.
+*   **¿Qué es un Vector?**: Es una representación numérica (lista de floats) del *significado* de un texto. Frases como "Me gustan los perros" y "Amo a los caninos" tendrán vectores muy cercanos matemáticamente, aunque no compartan palabras.
+*   **Embeddings**: Usamos `OpenAIEmbeddings` (modelo `text-embedding-3-large`) para convertir texto en estos vectores.
 
-### Pasos
+#### ⛏️ Sistema de Extracción Inteligente (`_init_extraction_system`)
+En lugar de guardar *todo* lo que dice el usuario (lo cual llenaría la base de datos de ruido), usamos un LLM secundario para filtrar.
+*   **Prompt de Extracción**: Analiza el mensaje y decide si contiene información de categorías específicas: `personal`, `profesional`, `preferencias`, `hechos_importantes`.
+*   **Salida Estructurada**: Usamos `PydanticOutputParser` para obligar al LLM a responder en un formato JSON estricto (`ExtractedMemory`), garantizando que siempre tengamos una categoría y un nivel de importancia (1-5).
 
-1.  **Clonar el repositorio**
+#### 📂 Persistencia Híbrida
+*   **Vectores**: Se guardan en `users/{user_id}/chromadb`.
+*   **Metadatos de Chat**: Títulos de chats, fechas de creación, etc., se guardan en `users/{user_id}/chats_meta.json` para un acceso rápido sin necesidad de inferencia vectorial.
+
+---
+
+### 3.2. `chatbot.py`: El Orquestador (LangGraph)
+
+Aquí reside la lógica conversacional. Usamos **LangGraph** en lugar de cadenas lineales (LangChain Chains) porque necesitamos un flujo cíclico y con estado.
+
+#### 🔄 El Grafo de Estados (`StateGraph`)
+El grafo define una máquina de estados por donde pasa cada mensaje.
+*   **Estado (`MemoryState`)**: Es un diccionario tipado que viaja por los nodos. Contiene:
+    *   `messages`: Lista de mensajes (User/AI).
+    *   `vector_memories`: Memorias recuperadas de ChromaDB.
+    *   `last_memory_extraction`: Para evitar procesar el mismo mensaje dos veces.
+
+#### 📍 Nodos del Grafo (Paso a Paso)
+
+1.  **`memory_retrieval_node`**:
+    *   Toma el último mensaje del usuario.
+    *   Lo convierte en vector.
+    *   Busca en ChromaDB los "recuerdos" más similares semánticamente.
+    *   Inyecta estos recuerdos en el estado.
+
+2.  **`context_optimization_node`**:
+    *   Los LLMs tienen un límite de contexto. Si la conversación es muy larga, este nodo usa `trim_messages` para recortar los mensajes más antiguos, manteniendo siempre el mensaje del sistema y los más recientes.
+
+3.  **`response_generation_node`**:
+    *   Construye el prompt final.
+    *   **Inyección de Contexto**: Toma las `vector_memories` recuperadas en el paso 1 y las inserta en el System Prompt. Así el LLM "sabe" lo que recordó.
+    *   Genera la respuesta.
+
+4.  **`memory_extraction_node`**:
+    *   Este nodo corre *después* de generar la respuesta (o en paralelo conceptualmente).
+    *   Llama al `memory_manager` para ver si el mensaje original del usuario tenía algo digno de guardarse a largo plazo.
+    *   Esto asegura que el aprendizaje sea continuo.
+
+---
+
+### 3.3. `app.py`: La Interfaz (Streamlit)
+
+Streamlit funciona recargando todo el script en cada interacción. Esto presenta un desafío para mantener el estado.
+
+#### 📦 Gestión de Estado (`st.session_state`)
+Para que el chatbot no se "reinicie" cada vez que pulsas un botón, usamos `st.session_state` intensivamente:
+*   `current_user`: Quién está logueado.
+*   `chatbot`: La instancia de la clase `ModernChatbot`.
+*   `memory_manager`: La instancia de `ModernMemoryManager`.
+*   `chat_history`: Cache local de mensajes para renderizado rápido.
+
+#### 🎨 UI Dinámica
+*   **Sidebar**: Cambia dinámicamente según si hay un usuario seleccionado. Muestra el historial de chats cargado desde el JSON de metadatos.
+*   **Chat Interface**: Renderiza los mensajes con estilo diferenciado (User vs Assistant). Muestra metadatos como "Memorias usadas" o "Contexto optimizado" debajo de cada respuesta para transparencia.
+
+---
+
+## 🌊 4. Flujo de Datos: "Vida de un Mensaje"
+
+Imagina que el usuario dice: *"Recuérdame comprar leche mañana"*
+
+1.  **UI**: `app.py` captura el texto y llama a `chatbot.chat()`.
+2.  **LangGraph - Inicio**: Se inicializa el estado con el mensaje.
+3.  **Recuperación**:
+    *   Se busca "comprar leche" en ChromaDB.
+    *   Quizás encuentra una nota antigua: "Prefiero leche de almendras".
+    *   Este recuerdo se añade al estado.
+4.  **Optimización**: Se verifica que el historial total no exceda los tokens.
+5.  **Generación**:
+    *   Prompt al LLM:
+        *   *System*: "Eres un asistente... Sabes esto del usuario: 'Prefiero leche de almendras'."
+        *   *User*: "Recuérdame comprar leche mañana".
+    *   El LLM responde: "Claro, te recordaré comprar leche de almendras mañana."
+6.  **Extracción (Aprendizaje)**:
+    *   El sistema analiza "Recuérdame comprar leche mañana".
+    *   Clasifica como `hechos_importantes`.
+    *   Guarda el vector en ChromaDB.
+7.  **UI**: Muestra la respuesta y un indicador "🧠 1 memoria usada".
+
+---
+
+## ⚙️ 5. Configuración (`config.py`)
+
+El archivo `config.py` centraliza las variables críticas para facilitar el mantenimiento.
+
+| Variable | Descripción | Valor por Defecto |
+| :--- | :--- | :--- |
+| `DEFAULT_MODEL` | Modelo principal de chat | `gpt-5-nano` (o gpt-4o) |
+| `MAX_VECTOR_RESULTS` | Cuántos recuerdos recuperar | `3` |
+| `MEMORY_CATEGORIES` | Categorías de clasificación | personal, profesional, etc. |
+| `USERS_DIR` | Ruta de almacenamiento | `./users` |
+
+---
+
+## 🚀 6. Guía de Instalación y Uso
+
+### Requisitos Previos
+*   **Python 3.9+**: Necesario para las últimas versiones de LangChain.
+*   **OpenAI API Key**: Créditos activos.
+
+### Instalación Paso a Paso
+
+1.  **Clonar y Preparar Entorno**:
     ```bash
-    git clone <url-del-repositorio>
+    git clone <repo>
     cd multiuser_chat_system
+    python -m venv venv
+    source venv/bin/activate  # Linux/Mac
+    # venv\Scripts\activate  # Windows
     ```
 
-2.  **Instalar dependencias**
-    Crea un archivo `requirements.txt` con el siguiente contenido o instálalos directamente:
-    ```text
-    streamlit
-    langchain
-    langgraph
-    langchain-openai
-    langchain-chroma
-    chromadb
-    python-dotenv
-    pydantic
-    ```
-    
-    Instalación:
+2.  **Instalar Dependencias**:
     ```bash
-    pip install -r requirements.txt
+    pip install streamlit langchain langgraph langchain-openai langchain-chroma chromadb python-dotenv pydantic
     ```
 
-3.  **Configurar variables de entorno**
-    Crea un archivo `.env` en la raíz del proyecto:
+3.  **Configurar Secretos**:
+    Crea un archivo `.env`:
     ```env
-    OPENAI_API_KEY=sk-tu-api-key-aqui
+    OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
     ```
 
-4.  **Ejecutar la aplicación**
+4.  **Ejecutar**:
     ```bash
     streamlit run app.py
     ```
 
-## 📂 Estructura del Proyecto
+---
 
-*   `app.py`: Punto de entrada de la aplicación Streamlit. Maneja la UI y la gestión de sesiones.
-*   `chatbot.py`: Define la lógica del chatbot usando `LangGraph`. Contiene el grafo de estados y la configuración del LLM.
-*   `memory_manager.py`: Gestiona todas las operaciones de memoria (vectorial y persistencia de archivos). Incluye la lógica de extracción automática de información.
-*   `config.py`: Archivo de configuración central (rutas, modelos, constantes).
-*   `utils.py`: Funciones auxiliares para formateo y validación.
-*   `users/`: Directorio donde se almacenan los datos persistentes de cada usuario (DBs, índices vectoriales).
+## 🔮 7. Extensibilidad y Futuro
 
-## 💡 Cómo Funciona la Memoria
-
-El sistema utiliza un enfoque proactivo para la memoria:
-
-1.  **Extracción**: Cada vez que el usuario envía un mensaje, un modelo secundario analiza si contiene información digna de recordar (ej. "Me llamo Juan", "Soy ingeniero", "No me gusta el picante").
-2.  **Categorización**: La información se clasifica en categorías (Personal, Profesional, Preferencias, Hechos Importantes) y se le asigna un nivel de importancia.
-3.  **Almacenamiento**: Se convierte en un vector (embedding) y se guarda en ChromaDB.
-4.  **Recuperación**: Cuando el usuario habla de nuevo, el sistema busca semánticamente en la base de datos vectorial para encontrar recuerdos relevantes y los inyecta en el contexto del LLM.
+Este sistema está diseñado para crecer:
+*   **Cambiar Vector Store**: Cambiar ChromaDB por Pinecone o Weaviate es trivial modificando solo `_init_vector_db` en `memory_manager.py`.
+*   **Modelos Locales**: Se puede reemplazar `ChatOpenAI` por `ChatOllama` para usar Llama 3 localmente, garantizando privacidad total.
+*   **Herramientas (Tools)**: LangGraph permite añadir nodos de herramientas (búsqueda web, calendario) fácilmente al grafo.
 
 ---
-Desarrollado para el curso de Ingeniería de LLM y Agentes AI.
+---
+
+## 🛠️ 8. Solución de Problemas (Troubleshooting)
+
+### 🔴 Error: `sqlite3.OperationalError: database is locked`
+*   **Causa**: LangGraph usa SQLite para checkpoints. Si intentas abrir la misma base de datos desde múltiples hilos o procesos (ej. corriendo `streamlit run` dos veces), se bloqueará.
+*   **Solución**:
+    1.  Detén todos los procesos de terminal (`Ctrl+C`).
+    2.  Verifica que no haya procesos zombies de python.
+    3.  Reinicia la app: `streamlit run app.py`.
+
+### 🔴 Error: `RateLimitError` (OpenAI)
+*   **Causa**: Has excedido tu cuota de API o los límites por minuto (RPM).
+*   **Solución**:
+    *   Verifica tu saldo en OpenAI Platform.
+    *   En `config.py`, cambia `DEFAULT_MODEL` a uno más barato/rápido como `gpt-3.5-turbo`.
+    *   Implementa un "backoff exponencial" en `utils.py` (actualmente no implementado por defecto).
+
+### 🔴 La memoria no parece persistir
+*   **Causa**: ChromaDB requiere que se llame a `persist()` o se configure correctamente el directorio.
+*   **Verificación**:
+    1.  Revisa la carpeta `users/{user_id}/chromadb`. Debería haber archivos `.bin` y `.sqlite`.
+    2.  Si borras esta carpeta, el usuario perderá su memoria a largo plazo.
+
+---
+
+## 📚 9. Referencia de API (Clases Principales)
+
+### `ModernMemoryManager` (`memory_manager.py`)
+
+| Método | Firma | Descripción |
+| :--- | :--- | :--- |
+| `__init__` | `(user_id: str)` | Inicializa ChromaDB y el sistema de extracción para un usuario específico. |
+| `save_vector_memory` | `(text, metadata) -> str` | Guarda un fragmento de texto como vector. Retorna el ID de la memoria. |
+| `search_vector_memory` | `(query, k=3) -> list` | Busca los `k` recuerdos más similares semánticamente a `query`. |
+| `extract_and_store_memories` | `(user_message) -> bool` | **Core Logic**. Usa un LLM para analizar si el mensaje merece ser guardado. |
+| `create_new_chat` | `(first_message) -> str` | Crea una nueva sesión y genera un título automático usando LLM. |
+
+### `ModernChatbot` (`chatbot.py`)
+
+| Método | Firma | Descripción |
+| :--- | :--- | :--- |
+| `chat` | `(message, chat_id) -> dict` | Punto de entrada principal. Ejecuta el grafo de LangGraph. Retorna respuesta y metadatos. |
+| `get_conversation_history` | `(chat_id, limit) -> list` | Recupera el historial formateado desde el estado de LangGraph. |
+| `_create_app` | `() -> CompiledGraph` | Construye y compila el grafo de estados (Nodos + Aristas). |
+
+---
+
+## 🔍 10. Inspección de Base de Datos
+
+Para depurar o auditar qué está guardando el sistema, puedes usar este script de utilidad (crear como `inspect_db.py`):
+
+```python
+import chromadb
+from config import USERS_DIR
+import os
+
+def inspect_user_memory(user_id):
+    path = os.path.join(USERS_DIR, user_id, "chromadb")
+    client = chromadb.PersistentClient(path=path)
+    collection = client.get_collection(f"memoria_{user_id}")
+    
+    print(f"--- Memorias de {user_id} ---")
+    data = collection.get()
+    for i, doc in enumerate(data['documents']):
+        meta = data['metadatas'][i]
+        print(f"[{meta['category'].upper()}] (Imp: {meta['importance']})")
+        print(f"Contenido: {doc}")
+        print("-" * 20)
+
+# Uso
+inspect_user_memory("usuario_ejemplo")
+```
+
+---
+*Documentación generada automáticamente por Antigravity Agent.*

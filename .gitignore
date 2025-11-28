@@ -81,3 +81,4 @@ historial.db
 *.bin
 *.index
 *.faiss
+6_sistemas_multiagentes/credentials.json
